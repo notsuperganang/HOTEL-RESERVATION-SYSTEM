@@ -23,8 +23,6 @@ Proyek ini dibangun menggunakan arsitektur berbasis komponen, di mana setiap kom
 - Mengikuti prinsip Design by Contract
 - Saling terhubung melalui antarmuka eksplisit
 
-![Arsitektur Komponen](https://i.imgur.com/zNlGC6v.png)
-
 ### 🧩 Komponen
 
 | Komponen | Deskripsi | Antarmuka |
