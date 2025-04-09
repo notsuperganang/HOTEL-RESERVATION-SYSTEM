@@ -1,0 +1,5 @@
+javac -d out src/main/java/com/hotel/app/HotelReservationSystem.java src/main/java/com/hotel/components/*.java src/main/java/com/hotel/interfaces/*.java src/main/java/com/hotel/models/*.java
+
+java -cp out com.hotel.app.HotelReservationSystem
+
+make sure on root
