@@ -1,0 +1,43 @@
+context ICustomerMgt::findCustomerById(customerId: Integer): Customer
+pre: 
+  -- CustomerId harus positif
+  customerId > 0
+post:
+  -- Result bisa berupa Customer atau null
+  result = null or result.id = customerId
+  -- Jika customer ditemukan, maka objek yang dikembalikan memiliki id yang sama dengan parameter
+
+context ICustomerMgt::createCustomer(name: String, email: String, phone: String): Customer
+pre:
+  -- Name tidak boleh null atau kosong
+  name <> null and name.size() > 0
+  -- Email tidak boleh null atau kosong
+  email <> null and email.size() > 0
+  -- Phone bisa null atau tidak
+  -- (Tidak ada pre-condition khusus untuk phone)
+post:
+  -- Objek Customer baru telah dibuat dengan ID unik
+  result <> null
+  result.id > 0
+  result.name = name
+  result.email = email
+  result.phone = phone
+  -- Customer baru telah disimpan ke penyimpanan
+  Customer.allInstances()->includes(result)
+  -- ID customer baru harus unik
+  Customer.allInstances()->forAll(c | c <> result implies c.id <> result.id)
+
+context ICustomerMgt::updateCustomer(customer: Customer): void
+pre:
+  -- Customer tidak boleh null
+  customer <> null
+  -- Customer dengan ID yang sama harus sudah ada dalam sistem
+  Customer.allInstances()->exists(c | c.id = customer.id)
+post:
+  -- Data customer telah diperbarui
+  let updatedCustomer: Customer = Customer.allInstances()->select(c | c.id = customer.id)->any() in
+    updatedCustomer.name = customer.name and
+    updatedCustomer.email = customer.email and
+    updatedCustomer.phone = customer.phone
+  -- Tidak ada customer baru yang dibuat
+  Customer.allInstances()->size() = Customer.allInstances@pre()->size()
