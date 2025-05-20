@@ -1,0 +1,87 @@
+context IReservationMGT::createReservation(customerId: Integer, roomId: Integer, checkIn: Date, checkOut: Date): Reservation
+pre:
+  -- IDs harus positif
+  customerId > 0 and roomId > 0
+  -- Tanggal tidak boleh null
+  checkIn <> null and checkOut <> null
+  -- Check-in harus sebelum check-out
+  checkIn < checkOut
+  -- Customer dengan ID tersebut harus ada
+  Customer.allInstances()->exists(c | c.id = customerId)
+  -- Room dengan ID tersebut harus ada
+  Room.allInstances()->exists(r | r.id = roomId)
+  -- Room harus tersedia untuk periode yang diminta
+  let room: Room = Room.allInstances()->select(r | r.id = roomId)->any() in
+    room.isAvailable = true and
+    not Reservation.allInstances()->exists(res | 
+      res.roomId = roomId and 
+      res.status <> 'CANCELLED' and 
+      not (checkOut <= res.checkInDate or checkIn >= res.checkOutDate)
+    )
+post:
+  -- Reservasi baru telah dibuat
+  result <> null
+  result.id > 0
+  result.customerId = customerId
+  result.roomId = roomId
+  result.checkInDate = checkIn
+  result.checkOutDate = checkOut
+  result.status = 'CONFIRMED'
+  -- Harga total dihitung
+  let room: Room = Room.allInstances()->select(r | r.id = roomId)->any() in
+    let nights: Integer = (checkOut.time - checkIn.time) / (1000 * 60 * 60 * 24) in
+      result.totalPrice = room.pricePerNight * nights
+  -- Reservasi disimpan dalam sistem
+  Reservation.allInstances()->includes(result)
+  -- ID reservasi baru harus unik
+  Reservation.allInstances()->forAll(r | r <> result implies r.id <> result.id)
+
+context IReservationMGT::findReservationById(reservationId: Integer): Reservation
+pre:
+  -- ReservationId harus positif
+  reservationId > 0
+post:
+  -- Result bisa berupa Reservation atau null
+  result = null or result.id = reservationId
+
+context IReservationMGT::findReservationsByCustomerId(customerId: Integer): List<Reservation>
+pre:
+  -- CustomerId harus positif
+  customerId > 0
+post:
+  -- Result adalah list (bisa kosong)
+  result <> null
+  -- Semua reservation dalam result milik customer dengan ID yang diberikan
+  result->forAll(r | r.customerId = customerId)
+  -- Result berisi semua reservation milik customer tersebut
+  Reservation.allInstances()->forAll(r | r.customerId = customerId implies result->includes(r))
+
+context IReservationMGT::cancelReservation(reservationId: Integer): void
+pre:
+  -- ReservationId harus positif
+  reservationId > 0
+  -- Reservation dengan ID tersebut harus ada
+  Reservation.allInstances()->exists(r | r.id = reservationId)
+  -- Reservation tidak boleh sudah dibatalkan
+  let reservation: Reservation = Reservation.allInstances()->select(r | r.id = reservationId)->any() in
+    reservation.status <> 'CANCELLED'
+post:
+  -- Status reservasi diubah menjadi CANCELLED
+  let reservation: Reservation = Reservation.allInstances()->select(r | r.id = reservationId)->any() in
+    reservation.status = 'CANCELLED'
+
+context IReservationMGT::updateReservation(reservation: Reservation): void
+pre:
+  -- Reservation tidak boleh null
+  reservation <> null
+  -- Reservation dengan ID yang sama harus sudah ada dalam sistem
+  Reservation.allInstances()->exists(r | r.id = reservation.id)
+post:
+  -- Informasi reservasi telah diperbarui
+  let updatedReservation: Reservation = Reservation.allInstances()->select(r | r.id = reservation.id)->any() in
+    updatedReservation.customerId = reservation.customerId and
+    updatedReservation.roomId = reservation.roomId and
+    updatedReservation.checkInDate = reservation.checkInDate and
+    updatedReservation.checkOutDate = reservation.checkOutDate and
+    updatedReservation.status = reservation.status and
+    updatedReservation.totalPrice = reservation.totalPrice

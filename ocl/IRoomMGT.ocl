@@ -1,0 +1,71 @@
+context IRoomMGT::findRoomById(roomId: Integer): Room
+pre:
+  -- RoomId harus positif
+  roomId > 0
+post:
+  -- Result bisa berupa Room atau null
+  result = null or result.id = roomId
+  -- Jika room ditemukan, maka objek yang dikembalikan memiliki id yang sama dengan parameter
+
+context IRoomMGT::findAvailableRooms(checkIn: Date, checkOut: Date): List<Room>
+pre:
+  -- Tanggal tidak boleh null
+  checkIn <> null and checkOut <> null
+  -- Check-in harus sebelum check-out
+  checkIn < checkOut
+post:
+  -- Result adalah list (bisa kosong)
+  result <> null
+  -- Semua room dalam result tersedia untuk periode yang diminta
+  result->forAll(r | 
+    r.isAvailable = true and
+    not Reservation.allInstances()->exists(res | 
+      res.roomId = r.id and 
+      res.status <> 'CANCELLED' and 
+      not (checkOut <= res.checkInDate or checkIn >= res.checkOutDate)
+    )
+  )
+  -- Result berisi semua room yang tersedia untuk periode tersebut
+  Room.allInstances()->forAll(r | 
+    (r.isAvailable = true and
+     not Reservation.allInstances()->exists(res | 
+       res.roomId = r.id and 
+       res.status <> 'CANCELLED' and 
+       not (checkOut <= res.checkInDate or checkIn >= res.checkOutDate)
+     )) implies result->includes(r)
+  )
+
+context IRoomMGT::isRoomAvailable(roomId: Integer, checkIn: Date, checkOut: Date): Boolean
+pre:
+  -- RoomId harus positif
+  roomId > 0
+  -- Tanggal tidak boleh null
+  checkIn <> null and checkOut <> null
+  -- Check-in harus sebelum check-out
+  checkIn < checkOut
+post:
+  -- Result harus true jika and hanya jika room tersedia untuk periode yang diminta
+  if Room.allInstances()->exists(r | r.id = roomId) then
+    let room: Room = Room.allInstances()->select(r | r.id = roomId)->any() in
+      result = (room.isAvailable = true and
+                not Reservation.allInstances()->exists(res | 
+                  res.roomId = roomId and 
+                  res.status <> 'CANCELLED' and 
+                  not (checkOut <= res.checkInDate or checkIn >= res.checkOutDate)
+                ))
+  else
+    result = false
+  endif
+
+context IRoomMGT::updateRoomStatus(roomId: Integer, isAvailable: Boolean): void
+pre:
+  -- RoomId harus positif
+  roomId > 0
+  -- Room dengan ID tersebut harus ada
+  Room.allInstances()->exists(r | r.id = roomId)
+post:
+  -- Status ketersediaan room diperbarui
+  let room: Room = Room.allInstances()->select(r | r.id = roomId)->any() in
+    room.isAvailable = isAvailable
+
+    

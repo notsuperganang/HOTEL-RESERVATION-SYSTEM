@@ -1,0 +1,51 @@
+context IPaymentMGT::processPayment(reservationId: Integer, amount: Double, paymentMethod: String): Payment
+pre:
+  -- ReservationId harus positif
+  reservationId > 0
+  -- Amount harus positif
+  amount > 0
+  -- PaymentMethod tidak boleh null atau kosong
+  paymentMethod <> null and paymentMethod.size() > 0
+  -- Reservation dengan ID tersebut harus ada
+  Reservation.allInstances()->exists(r | r.id = reservationId)
+  -- Reservation belum memiliki pembayaran yang COMPLETED
+  not Payment.allInstances()->exists(p | p.reservationId = reservationId and p.status = 'COMPLETED')
+post:
+  -- Pembayaran baru telah dibuat
+  result <> null
+  result.id > 0
+  result.reservationId = reservationId
+  result.amount = amount
+  result.paymentMethod = paymentMethod
+  result.status = 'COMPLETED'
+  -- Payment telah disimpan dalam sistem
+  Payment.allInstances()->includes(result)
+  -- ID Payment harus unik
+  Payment.allInstances()->forAll(p | p <> result implies p.id <> result.id)
+
+context IPaymentMGT::refundPayment(paymentId: Integer): Boolean
+pre:
+  -- PaymentId harus positif
+  paymentId > 0
+  -- Payment dengan ID tersebut harus ada
+  Payment.allInstances()->exists(p | p.id = paymentId)
+  -- Payment status harus COMPLETED (tidak dapat me-refund yang sudah direfund)
+  let payment: Payment = Payment.allInstances()->select(p | p.id = paymentId)->any() in
+    payment.status = 'COMPLETED'
+post:
+  -- Jika refund berhasil, status payment menjadi REFUNDED
+  if result = true then
+    let payment: Payment = Payment.allInstances()->select(p | p.id = paymentId)->any() in
+      payment.status = 'REFUNDED'
+  endif
+  -- Tidak ada payment baru yang dibuat
+  Payment.allInstances()->size() = Payment.allInstances@pre()->size()
+
+context IPaymentMGT::findPaymentById(paymentId: Integer): Payment
+pre:
+  -- PaymentId harus positif
+  paymentId > 0
+post:
+  -- Result bisa berupa Payment atau null
+  result = null or result.id = paymentId
+  -- Jika payment ditemukan, maka objek yang dikembalikan memiliki id yang sama dengan parameter
