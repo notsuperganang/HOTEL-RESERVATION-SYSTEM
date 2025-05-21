@@ -13,8 +13,8 @@ pre:
   name <> null and name.size() > 0
   -- Email tidak boleh null atau kosong
   email <> null and email.size() > 0
-  -- Phone bisa null atau tidak
-  -- (Tidak ada pre-condition khusus untuk phone)
+  -- Phone tidak boleh null atau kosong dan harus sesuai format
+  phone <> null and phone.size() > 0 and phone.matches('\\+62[0-9]{9,12}')
 post:
   -- Objek Customer baru telah dibuat dengan ID unik
   result <> null
